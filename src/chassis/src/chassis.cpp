@@ -5,48 +5,18 @@
 
 using namespace std;
 
-union Current
-{
-    short I_data;
-    u_char raw_data[2];
-} M3508_sendInfo[8];
-
-union Angle
-{
-    short angle_data;
-    u_char raw_data[2];
-};
-
-union Speed
-{
-    short speed_data;
-    u_char raw_data[2];
-};
-
-union Temperature
-{
-    short temp_data;
-    u_char raw_data;
-};
-struct M3508_ReceiveInfo
-{
-    Angle angle;
-    Speed speed;
-    Current current;
-    Temperature temp;
-} M3508_receiveInfo[8];
-
-void calculate(int16_t &ch0, int16_t &ch1)
+void calculate(Chassis *chassis)
 {
     // 归一化并缩放输入信号
-    float vx = ch0 * SCALE_FACTOR;
-    float vy = ch1 * SCALE_FACTOR;
+    float vx = chassis->controlerInfo.ch0 * SCALE_FACTOR;
+    float vy = chassis->controlerInfo.ch1 * SCALE_FACTOR;
+    float rot = chassis->controlerInfo.ch2 * SCALE_FACTOR;
 
     // 计算四个电机的控制量（麦轮公式）
-    M3508_sendInfo[0].I_data = vx - vy;
-    M3508_sendInfo[1].I_data = vx + vy;
-    M3508_sendInfo[2].I_data = -vx + vy;
-    M3508_sendInfo[3].I_data = -vx - vy;
+    chassis->M3508_sendInfo[0].I_data = vx - vy + rot;
+    chassis->M3508_sendInfo[1].I_data = vx + vy + rot;
+    chassis->M3508_sendInfo[2].I_data = -vx + vy + rot;
+    chassis->M3508_sendInfo[3].I_data = -vx - vy + rot;
 }
 
 void start(Chassis *chassis)
@@ -81,19 +51,19 @@ void start(Chassis *chassis)
 
     while (1)
     {
-        calculate(chassis->controlerInfo.ch0, chassis->controlerInfo.ch1);
+        calculate(chassis);
 
         // 发送CAN帧
         frame.can_id = 0x200;
         frame.can_dlc = 8;
-        frame.data[0] = M3508_sendInfo[0].raw_data[1];
-        frame.data[1] = M3508_sendInfo[0].raw_data[0];
-        frame.data[2] = M3508_sendInfo[0].raw_data[3];
-        frame.data[3] = M3508_sendInfo[0].raw_data[2];
-        frame.data[4] = M3508_sendInfo[0].raw_data[5];
-        frame.data[5] = M3508_sendInfo[0].raw_data[4];
-        frame.data[6] = M3508_sendInfo[0].raw_data[7];
-        frame.data[7] = M3508_sendInfo[0].raw_data[6];
+        frame.data[0] = chassis->M3508_sendInfo[0].raw_data[1];
+        frame.data[1] = chassis->M3508_sendInfo[0].raw_data[0];
+        frame.data[2] = chassis->M3508_sendInfo[0].raw_data[3];
+        frame.data[3] = chassis->M3508_sendInfo[0].raw_data[2];
+        frame.data[4] = chassis->M3508_sendInfo[0].raw_data[5];
+        frame.data[5] = chassis->M3508_sendInfo[0].raw_data[4];
+        frame.data[6] = chassis->M3508_sendInfo[0].raw_data[7];
+        frame.data[7] = chassis->M3508_sendInfo[0].raw_data[6];
 
         if (write(s, &frame, sizeof(frame)) != sizeof(frame))
         {
@@ -123,16 +93,16 @@ void start(Chassis *chassis)
                 {
                     continue;
                 }
-                M3508_receiveInfo[id].angle.raw_data[0] = frame.data[1];
-                M3508_receiveInfo[id].angle.raw_data[1] = frame.data[0];
+                chassis->M3508_receiveInfo[id].angle.raw_data[0] = frame.data[1];
+                chassis->M3508_receiveInfo[id].angle.raw_data[1] = frame.data[0];
 
-                M3508_receiveInfo[id].speed.raw_data[0] = frame.data[3];
-                M3508_receiveInfo[id].speed.raw_data[1] = frame.data[2];
+                chassis->M3508_receiveInfo[id].speed.raw_data[0] = frame.data[3];
+                chassis->M3508_receiveInfo[id].speed.raw_data[1] = frame.data[2];
 
-                M3508_receiveInfo[id].current.raw_data[0] = frame.data[5];
-                M3508_receiveInfo[id].current.raw_data[1] = frame.data[4];
+                chassis->M3508_receiveInfo[id].current.raw_data[0] = frame.data[5];
+                chassis->M3508_receiveInfo[id].current.raw_data[1] = frame.data[4];
 
-                M3508_receiveInfo[id].temp.raw_data = frame.data[6];
+                chassis->M3508_receiveInfo[id].temp.raw_data = frame.data[6];
 
                 // printf("M3058 [%d]: Angle=%d Speed=%d Current=%d Temp=%d\n", id, M3508_receiveInfo[id].angle.angle_data, M3508_receiveInfo[id].speed.speed_data, M3508_receiveInfo[id].current.I_data, M3508_receiveInfo[id].temp.temp_data);
             }
