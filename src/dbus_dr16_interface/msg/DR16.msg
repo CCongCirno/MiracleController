@@ -1,0 +1,13 @@
+int16 ch0
+int16 ch1
+int16 ch2
+int16 ch3
+uint8 s0
+uint8 s1
+int16 wheel
+int16 x
+int16 y
+int16 z
+uint8 l
+uint8 r
+uint16 key
