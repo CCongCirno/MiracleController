@@ -1,4 +1,5 @@
 #include <cstdint>
+#include "dbus_dr16_interface/msg/dr16.hpp"
 
 typedef struct
 {
@@ -28,20 +29,7 @@ public:
     void init(const char *serial);
     void DBusRead();
     bool isUpdate();
-    int16_t getCh0();
-    int16_t getCh1();
-    int16_t getCh2();
-    int16_t getCh3();
-    uint8_t getS0();
-    uint8_t getS1();
-    int16_t getWheel();
-    int16_t getX();
-    int16_t getY();
-    int16_t getZ();
-    uint8_t getL();
-    uint8_t getR();
-    uint16_t getKey();
-    void start();
+    void getDbusInfo(dbus_dr16_interface::msg::DR16 &msg);
 
 private:
     DBusData_t d_bus_data_;

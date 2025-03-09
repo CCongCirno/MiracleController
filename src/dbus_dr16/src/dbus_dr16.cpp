@@ -33,7 +33,6 @@ void DBus::init(const char *serial)
     options.c_iflag &= ~(IXON | IXOFF | IXANY);
     options.c_iflag &= ~IGNBRK; // disable break processing
 
-    /* set input mode (non−canonical, no echo,...) */
     options.c_lflag = 0;
     options.c_cc[VTIME] = 0;
     options.c_cc[VMIN] = 0;
@@ -118,94 +117,30 @@ void DBus::unpack()
     d_bus_data_.r = buff_[13];
     d_bus_data_.key = buff_[14] | buff_[15] << 8; // key board code
     d_bus_data_.wheel = (buff_[16] | buff_[17] << 8) & 0x07FF;
-    d_bus_data_.wheel -= 1024;
     int wheel_check = (buff_[16] | buff_[17] << 8);
-    if (abs(wheel_check - 1024) > 660)
-    {
-        d_bus_data_.wheel = 660;
-    }
+    (wheel_check - 1024 > 660) ? d_bus_data_.wheel = 660 : (wheel_check - 1024 < -660) ? d_bus_data_.wheel = -660
+                                                                                       : d_bus_data_.wheel = d_bus_data_.wheel - 1024;
     is_success = true;
-    /*cout << "ch0:" << (int)d_bus_data_.ch0 << " ";
-    cout << "ch1:" << (int)d_bus_data_.ch1 << " ";
-    cout << "ch2:" << (int)d_bus_data_.ch2 << " ";
-    cout << "ch3:" << (int)d_bus_data_.ch3 << " ";
-    cout << "s0:" << (int)d_bus_data_.s0 << " ";
-    cout << "s1:" << (int)d_bus_data_.s1 << " ";
-    cout << "x:" << (int)d_bus_data_.x << " ";
-    cout << "y:" << (int)d_bus_data_.y << " ";
-    cout << "z:" << (int)d_bus_data_.z << " ";
-    cout << "l:" << (int)d_bus_data_.l << " ";
-    cout << "r:" << (int)d_bus_data_.r << " ";
-    cout << "key:" << (int)d_bus_data_.key << " ";
-    cout << "wheel:" << (int)d_bus_data_.wheel << "\n";*/
+}
+
+void DBus::getDbusInfo(dbus_dr16_interface::msg::DR16 &msg)
+{
+    msg.ch0 = d_bus_data_.ch0;
+    msg.ch1 = d_bus_data_.ch1;
+    msg.ch2 = d_bus_data_.ch2;
+    msg.ch3 = d_bus_data_.ch3;
+    msg.s0 = d_bus_data_.s0;
+    msg.s1 = d_bus_data_.s1;
+    msg.x = d_bus_data_.x;
+    msg.y = d_bus_data_.y;
+    msg.z = d_bus_data_.z;
+    msg.l = d_bus_data_.l;
+    msg.r = d_bus_data_.r;
+    msg.key = d_bus_data_.key;
+    msg.wheel = d_bus_data_.wheel;
 }
 
 bool DBus::isUpdate()
 {
     return is_update_;
-}
-
-int16_t DBus::getCh0()
-{
-    return d_bus_data_.ch0;
-}
-
-int16_t DBus::getCh1()
-{
-    return d_bus_data_.ch1;
-}
-
-int16_t DBus::getCh2()
-{
-    return d_bus_data_.ch2;
-}
-
-int16_t DBus::getCh3()
-{
-    return d_bus_data_.ch3;
-}
-
-uint8_t DBus::getS0()
-{
-    return d_bus_data_.s0;
-}
-
-uint8_t DBus::getS1()
-{
-    return d_bus_data_.s1;
-}
-
-int16_t DBus::getWheel()
-{
-    return d_bus_data_.wheel;
-}
-
-int16_t DBus::getX()
-{
-    return d_bus_data_.x;
-}
-
-int16_t DBus::getY()
-{
-    return d_bus_data_.y;
-}
-
-int16_t DBus::getZ()
-{
-    return d_bus_data_.z;
-}
-
-uint8_t DBus::getL()
-{
-    return d_bus_data_.l;
-}
-
-uint8_t DBus::getR()
-{
-    return d_bus_data_.r;
-}
-
-uint16_t DBus::getKey()
-{
-    return d_bus_data_.key;
 }

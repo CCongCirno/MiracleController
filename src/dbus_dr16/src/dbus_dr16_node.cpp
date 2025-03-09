@@ -1,50 +1,47 @@
 #include "dbus_dr16/dbus_dr16_node.h"
 using namespace std;
 
-int main(int argc, char *argv[])
+class DBusDR16Publisher : public rclcpp::Node
 {
-    rclcpp::init(argc, argv);
-    rclcpp::Node::SharedPtr node = rclcpp::Node::make_shared("DBus_DR16_Publisher");
-    rclcpp::Publisher<dbus_dr16_interface::msg::DR16>::SharedPtr publisher_ = node->create_publisher<dbus_dr16_interface::msg::DR16>("/remote_control", 1);
-    DBus dbus;
-    const char *port = "/dev/ttyUSB0";
-    dbus.init(port);
-    rclcpp::WallRate loop_rate(1000);
-    while (rclcpp::ok())
+public:
+    DBusDR16Publisher(std::string name) : Node(name)
     {
-        dbus_dr16_interface::msg::DR16 message = dbus_dr16_interface::msg::DR16();
+        RCLCPP_INFO(this->get_logger(), "%s node has started.", name.c_str());
+        publisher_ = this->create_publisher<dbus_dr16_interface::msg::DR16>("/remote_control", 1);
+        timer_ = this->create_wall_timer(std::chrono::microseconds(1000), std::bind(&DBusDR16Publisher::timer_callback, this));
+    }
+
+private:
+    rclcpp::Publisher<dbus_dr16_interface::msg::DR16>::SharedPtr publisher_;
+    rclcpp::TimerBase::SharedPtr timer_;
+    dbus_dr16_interface::msg::DR16 message = dbus_dr16_interface::msg::DR16();
+    DBus dbus;
+    bool isDbusInit = false;
+    const char *port = "/dev/ttyUSB0";
+    void timer_callback()
+    {
+        if (!isDbusInit)
+        {
+            dbus.init(port);
+            isDbusInit = true;
+        }
         dbus.DBusRead();
         if (dbus.isUpdate())
         {
-            message.ch0 = dbus.getCh0();
-            message.ch1 = dbus.getCh1();
-            message.ch2 = dbus.getCh2();
-            message.ch3 = dbus.getCh3();
-            message.s0 = dbus.getS0();
-            message.s1 = dbus.getS1();
-            message.x = dbus.getX();
-            message.y = dbus.getY();
-            message.z = dbus.getZ();
-            message.l = dbus.getL();
-            message.r = dbus.getR();
-            message.wheel = dbus.getWheel();
-            cout << "ch0:" << (int)message.ch0 << " ";
-            cout << "ch1:" << (int)message.ch1 << " ";
-            cout << "ch2:" << (int)message.ch2 << " ";
-            cout << "ch3:" << (int)message.ch3 << " ";
-            cout << "s0:" << (int)message.s0 << " ";
-            cout << "s1:" << (int)message.s1 << " ";
-            cout << "x:" << (int)message.x << " ";
-            cout << "y:" << (int)message.y << " ";
-            cout << "z:" << (int)message.z << " ";
-            cout << "l:" << (int)message.l << " ";
-            cout << "r:" << (int)message.r << " ";
-            cout << "key:" << (int)message.key << " ";
-            cout << "wheel:" << (int)message.wheel << "\n";
-
+            dbus.getDbusInfo(message);
+            RCLCPP_INFO(this->get_logger(), "[DR16] ch0:%4d ch1:%4d ch2:%4d ch3:%4d s0:%1d s0:%1d x:%3d y:%3d z:%3d l:%1d r:%1d key:%5d wheel:%4d",
+                        (int)message.ch0, (int)message.ch1, (int)message.ch2, (int)message.ch3, (int)message.s0, (int)message.s1, (int)message.x,
+                        (int)message.y, (int)message.z, (int)message.l, (int)message.r, (int)message.key, (int)message.wheel);
             publisher_->publish(message);
-            loop_rate.sleep();
         }
     }
+};
+
+int main(int argc, char *argv[])
+{
+    rclcpp::init(argc, argv);
+    auto node = std::make_shared<DBusDR16Publisher>("DBusDR16Publisher");
+    rclcpp::spin(node);
+    rclcpp::shutdown();
     return 0;
 }
