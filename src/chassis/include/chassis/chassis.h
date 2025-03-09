@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <chrono>
 #include <unistd.h>
 #include <iostream>
 #include <cstring>
@@ -8,6 +9,51 @@
 #include <sys/ioctl.h>
 #include <linux/can.h>
 #include <linux/can/raw.h>
+
+class PID
+{
+private:
+    double Kp, Ki, Kd;
+    double prev_error;
+    double integral;
+    double max_out, min_out;                         // 输出限幅
+    std::chrono::steady_clock::time_point prev_time; // 记录上一次时间戳
+
+public:
+    PID() = default;
+    ~PID() = default;
+    void setPID(double Kp, double Ki, double Kd, double min_out, double max_out)
+    {
+        this->Kp = Kp;
+        this->Ki = Ki;
+        this->Kd = Kd;
+        this->min_out = min_out;
+        this->max_out = max_out;
+        // printf("kp:%.5lf ki:%.5lf kd:%.5lf\n", Kp, Ki, Kd);
+    }
+
+    double compute(double setpoint, double measured_value)
+    {
+        auto current_time = std::chrono::steady_clock::now();
+        std::chrono::duration<double> elapsed = current_time - prev_time;
+        double dt = elapsed.count(); // 计算时间间隔（秒）
+
+        double error = setpoint - measured_value;
+        integral += error * dt;                        // 计算积分项
+        double derivative = (error - prev_error) / dt; // 计算微分项
+        double output = Kp * error + Ki * integral + Kd * derivative;
+
+        if (output > max_out)
+            output = max_out;
+        if (output < min_out)
+            output = min_out;
+
+        prev_error = error;
+        prev_time = current_time; // 更新时间戳
+        printf("time:%.5lf output:%.5lf error:%.5lf Kpr:%.5lf\n", dt, output, error, Kp);
+        return output;
+    }
+};
 
 class Chassis
 {
@@ -52,6 +98,8 @@ public:
         Current current;
         Temperature temp;
     } M3508_receiveInfo[8];
+
+    PID pid_controller[4];
 
 private:
 };

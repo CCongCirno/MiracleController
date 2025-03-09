@@ -2,14 +2,13 @@
 using namespace std;
 ChassisSubscriber::ChassisSubscriber() : Node("Chassis_Subscriber")
 {
-    // 创建一个订阅者，订阅 /topic 频道，消息类型为 std_msgs::msg::String
     subscription_ = this->create_subscription<dbus_dr16_interface::msg::DR16>(
         "/remote_control", 1, std::bind(&ChassisSubscriber::callback, this, std::placeholders::_1));
 }
 
 void ChassisSubscriber::callback(const dbus_dr16_interface::msg::DR16::SharedPtr msg)
 {
-    RCLCPP_INFO(this->get_logger(), "Received: ");
+    // RCLCPP_INFO(this->get_logger(), "Received: ");
     chassis.controlerInfo.ch0 = msg->ch0;
     chassis.controlerInfo.ch1 = msg->ch1;
     chassis.controlerInfo.ch2 = msg->ch2;
