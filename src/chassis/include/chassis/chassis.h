@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <iostream>
 #include <cstring>
+
 #include <net/if.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -10,26 +11,29 @@
 #include <linux/can.h>
 #include <linux/can/raw.h>
 
+#include <fmt/core.h>
+#include <fmt/color.h>
+#include <fmt/format.h>
+
+#define MAX_OUTPUT_ 4000
+#define MAX_INPUT_ 660
+#define SCALE_FACTOR (MAX_OUTPUT_ / (float)MAX_INPUT_)
+
+class Chassis;
+
 class PID
 {
-private:
-    double Kp, Ki, Kd;
-    double prev_error;
-    double integral;
-    double max_out, min_out;                         // 输出限幅
-    std::chrono::steady_clock::time_point prev_time; // 记录上一次时间戳
-
 public:
     PID() = default;
     ~PID() = default;
-    void setPID(double Kp, double Ki, double Kd, double min_out, double max_out)
+    void setPID(double Kp, double Ki, double Kd, double min_out, double max_out, int id)
     {
         this->Kp = Kp;
         this->Ki = Ki;
         this->Kd = Kd;
         this->min_out = min_out;
         this->max_out = max_out;
-        // printf("kp:%.5lf ki:%.5lf kd:%.5lf\n", Kp, Ki, Kd);
+        this->id = id;
     }
 
     double compute(double setpoint, double measured_value)
@@ -50,9 +54,21 @@ public:
 
         prev_error = error;
         prev_time = current_time; // 更新时间戳
-        printf("time:%.5lf output:%.5lf error:%.5lf Kpr:%.5lf\n", dt, output, error, Kp);
+
         return output;
     }
+
+    void errorEvaluate(double &vx, double &vy, double &rot, Chassis *chassis);
+    std::string pid_idntifier = fmt::format(fg(fmt::color::green) | fmt::emphasis::bold, "PID");
+
+private:
+    double Kp, Ki, Kd;
+    double prev_error;
+    double integral;
+    double max_out, min_out;                         // 输出限幅
+    std::chrono::steady_clock::time_point prev_time; // 记录上一次时间戳
+    int err_list[20], err_cnt;
+    int id;
 };
 
 class Chassis
@@ -100,6 +116,8 @@ public:
     } M3508_receiveInfo[8];
 
     PID pid_controller[4];
+    std::string error_idntifier = fmt::format(fg(fmt::color::red) | fmt::emphasis::bold, "ERROR");
+    std::string chassis_idntifier = fmt::format(fg(fmt::color::green) | fmt::emphasis::bold, "CHASSIS");
 
 private:
 };

@@ -1,11 +1,38 @@
 #include "chassis/chassis.h"
-#define MAX_OUTPUT 4000
-#define MAX_INPUT 660
-#define SCALE_FACTOR (MAX_OUTPUT / (float)MAX_INPUT)
 
 using namespace std;
 
-int err_list[20], cnt = 0;
+void PID::errorEvaluate(double &vx, double &vy, double &rot, Chassis *chassis)
+{
+    int maxn, minn, sum = 0;
+    if (err_cnt < 20)
+    {
+        err_list[err_cnt] = (int)(vx - vy + rot) - (int)chassis->M3508_receiveInfo[0].speed.speed_data;
+        err_cnt++;
+        for (int j = 0; j < err_cnt; ++j)
+        {
+            maxn = (maxn < err_list[j]) ? err_list[j] : maxn;
+            minn = (minn > err_list[j]) ? err_list[j] : minn;
+            sum = sum + err_list[j];
+        }
+    }
+    else
+    {
+        for (int j = 0; j < 19; ++j)
+        {
+            err_list[j] = err_list[j + 1];
+        }
+        err_list[19] = (int)(vx - vy + rot) - (int)chassis->M3508_receiveInfo[0].speed.speed_data;
+        maxn = err_list[19], minn = err_list[19], sum = err_list[19];
+        for (int j = 0; j < 19; ++j)
+        {
+            maxn = (maxn < err_list[j]) ? err_list[j] : maxn;
+            minn = (minn > err_list[j]) ? err_list[j] : minn;
+            sum = sum + err_list[j];
+        }
+    }
+    fmt::print("[{}] M3508[{:1d}] now:{:4d} err:{:4d} maxn:{:4d} minn:{:4d} avg:{:>5.1f}\n", pid_idntifier, id, (int)chassis->M3508_receiveInfo[0].speed.speed_data, (int)(vx - vy + rot) - (int)chassis->M3508_receiveInfo[0].speed.speed_data, maxn, minn, sum * 1.0 / err_cnt);
+}
 
 void calculate(Chassis *chassis)
 {
@@ -14,39 +41,13 @@ void calculate(Chassis *chassis)
     double vy = chassis->controlerInfo.ch1 * SCALE_FACTOR;
     double rot = chassis->controlerInfo.ch2 * SCALE_FACTOR;
     chassis->M3508_sendInfo[0].I_data = (int16_t)chassis->pid_controller[0].compute((vx - vy + rot) * 1.0, (chassis->M3508_receiveInfo[0].speed.speed_data) * 1.0);
-    int maxn, minn, sum = 0;
-    if (cnt < 20)
-    {
-        err_list[cnt] = (int)(vx - vy + rot) - (int)chassis->M3508_receiveInfo[0].speed.speed_data;
-        cnt++;
-        for (int i = 0; i < cnt; ++i)
-        {
-            maxn = (maxn < err_list[i]) ? err_list[i] : maxn;
-            minn = (minn > err_list[i]) ? err_list[i] : minn;
-            sum = sum + err_list[i];
-        }
-    }
-    else
-    {
-        for (int i = 0; i < 19; ++i)
-        {
-            err_list[i] = err_list[i + 1];
-        }
-        err_list[19] = (int)(vx - vy + rot) - (int)chassis->M3508_receiveInfo[0].speed.speed_data;
-        maxn = err_list[19], minn = err_list[19], sum = err_list[19];
-        for (int i = 0; i < 19; ++i)
-        {
-            maxn = (maxn < err_list[i]) ? err_list[i] : maxn;
-            minn = (minn > err_list[i]) ? err_list[i] : minn;
-            sum = sum + err_list[i];
-        }
-    }
-    printf("err:%4d maxn:%4d minn:%4d avg:%5.1lf\n", (int)(vx - vy + rot) - (int)chassis->M3508_receiveInfo[0].speed.speed_data, maxn, minn, sum * 1.0 / cnt);
-    // 计算四个电机的控制量（麦轮公式）
-    // chassis->M3508_sendInfo[0].I_data = vx - vy + rot;
     chassis->M3508_sendInfo[1].I_data = (int16_t)chassis->pid_controller[1].compute((vx + vy + rot) * 1.0, (chassis->M3508_receiveInfo[1].speed.speed_data) * 1.0);
     chassis->M3508_sendInfo[2].I_data = (int16_t)chassis->pid_controller[2].compute((-vx + vy + rot) * 1.0, (chassis->M3508_receiveInfo[2].speed.speed_data) * 1.0);
     chassis->M3508_sendInfo[3].I_data = (int16_t)chassis->pid_controller[3].compute((-vx - vy + rot) * 1.0, (chassis->M3508_receiveInfo[3].speed.speed_data) * 1.0);
+    for (int i = 0; i < 4; ++i)
+    {
+        chassis->pid_controller[i].errorEvaluate(vx, vy, rot, chassis);
+    }
 }
 
 void start(Chassis *chassis)
@@ -59,7 +60,7 @@ void start(Chassis *chassis)
     s = socket(PF_CAN, SOCK_RAW, CAN_RAW);
     if (s < 0)
     {
-        perror("Error while opening socket");
+        fmt::print("[{}] Error while opening socket.\n", chassis->error_idntifier);
         return;
     }
 
@@ -73,16 +74,16 @@ void start(Chassis *chassis)
     // 绑定socket
     if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
-        perror("Error in socket bind");
+        fmt::print("[{}] Error in socket bind.\n", chassis->error_idntifier);
         return;
     }
 
     struct can_frame frame;
 
-    chassis->pid_controller[0].setPID(15.5, 0.03, 0.125, -4000.0, 4000.0);
-    chassis->pid_controller[1].setPID(15.5, 0.03, 0.125, -4000.0, 4000.0);
-    chassis->pid_controller[2].setPID(15.5, 0.03, 0.125, -4000.0, 4000.0);
-    chassis->pid_controller[3].setPID(15.5, 0.03, 0.125, -4000.0, 4000.0);
+    chassis->pid_controller[0].setPID(15.5, 0.04, 0.115, -4000.0, 4000.0, 0);
+    chassis->pid_controller[1].setPID(15.5, 0.04, 0.115, -4000.0, 4000.0, 1);
+    chassis->pid_controller[2].setPID(15.5, 0.04, 0.115, -4000.0, 4000.0, 2);
+    chassis->pid_controller[3].setPID(15.5, 0.04, 0.115, -4000.0, 4000.0, 3);
 
     while (1)
     {
@@ -140,7 +141,7 @@ void start(Chassis *chassis)
 
                 chassis->M3508_receiveInfo[id].temp.raw_data = frame.data[6];
 
-                printf("M3058 [%d]: Angle=%d Speed=%d Current=%d Temp=%d\n", id + 1, chassis->M3508_receiveInfo[id].angle.angle_data, chassis->M3508_receiveInfo[id].speed.speed_data, chassis->M3508_receiveInfo[id].current.I_data, chassis->M3508_receiveInfo[id].temp.temp_data);
+                fmt::print("[{}] M3058 [{:1d}]: Angle={:5d} Speed={:5d} Current={:5d} Temp={:2d}\n", chassis->chassis_idntifier, id + 1, chassis->M3508_receiveInfo[id].angle.angle_data, chassis->M3508_receiveInfo[id].speed.speed_data, chassis->M3508_receiveInfo[id].current.I_data, chassis->M3508_receiveInfo[id].temp.temp_data);
             }
         }
     }

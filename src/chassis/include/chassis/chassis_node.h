@@ -1,7 +1,9 @@
 #include <iostream>
 #include <thread>
 
+#ifndef CHASSIS_H
 #include "chassis/chassis.h"
+#endif
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
