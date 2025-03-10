@@ -15,6 +15,8 @@
 #include <fmt/color.h>
 #include <fmt/format.h>
 
+#include "can_interface/msg/motor_send_info.hpp"
+
 #define MAX_OUTPUT_ 4000
 #define MAX_INPUT_ 660
 #define SCALE_FACTOR (MAX_OUTPUT_ / (float)MAX_INPUT_)
@@ -76,6 +78,13 @@ class Chassis
 public:
     Chassis() = default;
     ~Chassis() = default;
+    void init();
+    void calculate();
+    bool isUpdate()
+    {
+        return updateFlag;
+    }
+    void canSend(can_interface::msg::MotorSendInfo &msg);
     struct ControlerInfo
     {
         int16_t ch0;
@@ -84,42 +93,21 @@ public:
         int16_t ch3;
     } controlerInfo;
 
-    union Current
-    {
-        short I_data;
-        u_char raw_data[2];
-    } M3508_sendInfo[8];
-
-    union Angle
-    {
-        short angle_data;
-        u_char raw_data[2];
-    };
-
-    union Speed
-    {
-        short speed_data;
-        u_char raw_data[2];
-    };
-
-    union Temperature
-    {
-        short temp_data;
-        u_char raw_data;
-    };
     struct M3508_ReceiveInfo
     {
-        Angle angle;
-        Speed speed;
-        Current current;
-        Temperature temp;
-    } M3508_receiveInfo[8];
+        int16_t angle;
+        int16_t speed;
+        int16_t current;
+        int8_t temp;
+    } receiveInfo[8];
 
-    PID pid_controller[4];
     std::string error_idntifier = fmt::format(fg(fmt::color::red) | fmt::emphasis::bold, "ERROR");
     std::string chassis_idntifier = fmt::format(fg(fmt::color::green) | fmt::emphasis::bold, "CHASSIS");
 
 private:
+    bool updateFlag = false;
+    int16_t sendCurrentInfo[8];
+    PID pid_controller[4];
 };
 
 void start(Chassis *chassis);
