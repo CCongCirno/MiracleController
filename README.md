@@ -21,7 +21,7 @@ Config USB2CAN
 
 ```
 cd MiracleController
-sudo bash ./CAN_init.sh
+sudo bash ./can_init.sh
 ```
 
 DBus node
