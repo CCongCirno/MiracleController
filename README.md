@@ -1,4 +1,7 @@
 # MiracleController
+
+[![CodeFactor](https://www.codefactor.io/repository/github/ccongcirno/miraclecontroller/badge)](https://www.codefactor.io/repository/github/ccongcirno/miraclecontroller)
+
 ## environment
 
 ROS2/humble
