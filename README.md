@@ -1,6 +1,8 @@
 # MiracleController
 
-[![CodeFactor](https://www.codefactor.io/repository/github/ccongcirno/miraclecontroller/badge)](https://www.codefactor.io/repository/github/ccongcirno/miraclecontroller)
+[![CodeFactor](https://img.shields.io/codefactor/grade/github/CCongCirno/MiracleController?color=green)](https://www.codefactor.io/repository/github/ccongcirno/miraclecontroller)
+
+
 
 ## environment
 
