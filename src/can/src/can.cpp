@@ -94,7 +94,6 @@ void CAN::canSend(const can_interface::msg::MotorSendInfo::SharedPtr msg)
 
 int CAN::canInit(int id)
 {
-
     struct sockaddr_can addr;
     struct ifreq ifr;
     this->id = id;

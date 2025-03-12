@@ -18,7 +18,6 @@ typedef struct
     uint8_t l;
     uint8_t r;
     uint16_t key;
-
 } DBusData_t;
 
 class DBus
